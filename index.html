@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>:root{padding-top:env(safe-area-inset-top,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>Kept</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#17121a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,500&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-column phone app — her note pinned on top, today's routine below, bottom tab bar. Dark-first. */
+:root{
+  --bg:#17121a; --surface:#221a26; --surface-2:#2c2231; --line:#3a2e40;
+  --fg:#f2e9ee; --muted:#a8939f;
+  --accent:#e2587c; --accent-ink:#1a0d13; --accent-soft:rgba(226,88,124,.14);
+  --brass:#d1ad72; --brass-soft:rgba(209,173,114,.14);
+  --good:#7fc59a; --warn:#e3b45c;
+  --display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:14px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f5eef1; --surface:#ffffff; --surface-2:#f9f3f6; --line:#e6d9df;
+  --fg:#2a1822; --muted:#7a6470;
+  --accent:#a8274a; --accent-ink:#ffffff; --accent-soft:rgba(168,39,74,.09);
+  --brass:#8a6526; --brass-soft:rgba(138,101,38,.10);
+  --good:#2f7d50; --warn:#9a6a12; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#f5eef1; --surface:#ffffff; --surface-2:#f9f3f6; --line:#e6d9df;
+  --fg:#2a1822; --muted:#7a6470;
+  --accent:#a8274a; --accent-ink:#ffffff; --accent-soft:rgba(168,39,74,.09);
+  --brass:#8a6526; --brass-soft:rgba(138,101,38,.10);
+  --good:#2f7d50; --warn:#9a6a12; color-scheme:light }
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 110px;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);font-weight:500;text-wrap:balance;margin:0;letter-spacing:.005em}
+h2{font-size:1.45rem}
+.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.date{font-family:var(--display);font-size:1.05rem;font-style:italic;color:var(--muted)}
+.standing{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--brass);font-weight:600;letter-spacing:.04em}
+.standing .bar{width:70px;height:4px;border-radius:2px;background:var(--brass-soft);overflow:hidden}
+.standing .bar i{display:block;height:100%;background:var(--brass)}
+
+/* her note */
+.note{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 20px 18px 20px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+.seal{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 30%, color-mix(in srgb,var(--accent) 80%,#fff 20%), var(--accent) 55%, color-mix(in srgb,var(--accent) 70%,#000 30%));color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-size:1.6rem;font-weight:700;box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--accent) 70%,#000 30%), 0 2px 8px rgba(0,0,0,.25);flex-shrink:0}
+.note .msg{font-family:var(--display);font-size:1.22rem;line-height:1.45;min-width:0}
+.note .sig{margin-top:8px;font-family:var(--display);font-style:italic;color:var(--muted);font-size:.98rem}
+.note .who{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;border-top:1px dashed var(--line);padding-top:10px;font-size:.78rem;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:600;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.chip.hot{color:var(--accent);background:var(--accent-soft);border-color:transparent}
+.chip.brass{color:var(--brass);background:var(--brass-soft);border-color:transparent}
+
+/* sections */
+.section{display:flex;flex-direction:column;gap:12px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+
+/* check-in */
+.choices{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.choices.three{grid-template-columns:repeat(3,1fr)}
+.choice{padding:10px 4px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:.82rem;font-weight:600;color:var(--muted);text-align:center}
+.choice[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg);font-weight:600}
+.btn.small{padding:7px 12px;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* tasks */
+.slot{display:flex;flex-direction:column}
+.slot-label{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:4px 2px 6px}
+.task{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:center;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;text-align:left;width:100%;margin-bottom:6px}
+.task .box{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;transition:all .15s}
+.task.done .box{background:var(--accent);border-color:var(--accent)}
+.task.done .box::after{content:"";width:6px;height:11px;border:solid var(--accent-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.task.done .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.task .t{min-width:0;font-weight:500}
+.task .ess{display:block;font-size:.72rem;color:var(--accent);font-weight:600;letter-spacing:.04em}
+.task .pts{font-size:.78rem;color:var(--brass);font-weight:700;font-variant-numeric:tabular-nums}
+.progress{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}
+
+/* journal */
+textarea,input[type=text],input[type=number],select{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+textarea{min-height:130px;resize:vertical;line-height:1.55}
+.entry{border-left:2px solid var(--line);padding:2px 0 2px 14px;display:flex;flex-direction:column;gap:6px}
+.entry .p{font-family:var(--display);font-style:italic;color:var(--muted)}
+.entry .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.reply{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-family:var(--display);font-size:1.02rem}
+.reply b{font-family:var(--body);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:2px}
+
+/* rewards */
+.reward{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.purse{display:flex;align-items:baseline;gap:8px}
+.purse .n{font-family:var(--display);font-size:2.4rem;color:var(--brass);font-variant-numeric:tabular-nums;line-height:1}
+
+/* settings */
+label.f{display:flex;flex-direction:column;gap:6px;font-size:.85rem;font-weight:600}
+label.f span.h{font-weight:400;color:var(--muted);font-size:.8rem}
+.styles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.style-opt{text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:3px}
+.style-opt b{font-family:var(--display);font-weight:500;font-size:1.05rem}
+.style-opt small{color:var(--muted);font-size:.78rem;line-height:1.35}
+.style-opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.scale{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.edit-row{display:grid;grid-template-columns:1fr 92px 34px;gap:6px;align-items:center}
+.edit-row input,.edit-row select{padding:8px 10px;font-size:.9rem}
+.x{border:1px solid var(--line);background:transparent;border-radius:8px;height:36px;color:var(--muted)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted)}
+
+/* burnout */
+.burnout{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px dashed var(--line)}
+.burnout.on{border-style:solid;border-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+
+/* nav */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{background:none;border:0;padding:10px 0 12px;font-size:.72rem;font-weight:600;letter-spacing:.06em;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(10px);opacity:0;background:var(--surface-2);border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:999px;font-size:.88rem;font-weight:600;transition:all .25s;pointer-events:none;z-index:30;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.banner .btn{white-space:nowrap}
+.banner{flex-wrap:wrap}
+.banner{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:12px;background:var(--brass-soft);color:var(--fg);font-size:.88rem}
+.empty{color:var(--muted);font-style:italic;font-family:var(--display);padding:6px 2px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.week div{display:flex;flex-direction:column;gap:5px;align-items:center;font-size:.7rem;color:var(--muted);letter-spacing:.06em}
+.week i{width:100%;aspect-ratio:1;max-width:36px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);display:block}
+.week i.l1{background:color-mix(in srgb,var(--accent) 30%,var(--surface-2))}
+.week i.l2{background:color-mix(in srgb,var(--accent) 60%,var(--surface-2))}
+.week i.l3{background:var(--accent);border-color:var(--accent)}
+.week .today{color:var(--fg);font-weight:700}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(.98);opacity:.6}100%{transform:none;opacity:1}}
+</style>
+
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="tabs" aria-label="Sections"><div class="in" id="tabs"></div></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+// ---------- storage ----------
+const KEY = "kept.v1";
+function load(){ try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+const uid = () => Math.random().toString(36).slice(2,9);
+const dk = (d=new Date()) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+
+function defaults(){
+  return {
+    v:1, configured:false, dismissedIntro:false,
+    me:{ name:"Ed", term:"boy" },
+    her:{ name:"Madame Wren", style:"governess", intensity:3, pet:"pet" },
+    tasks:[
+      {id:uid(), title:"Take your meds", slot:"morning", essential:true, pts:10},
+      {id:uid(), title:"Drink a full glass of water", slot:"morning", essential:true, pts:5},
+      {id:uid(), title:"Get properly dressed", slot:"morning", essential:false, pts:5},
+      {id:uid(), title:"Eat a real lunch", slot:"day", essential:true, pts:10},
+      {id:uid(), title:"Ten minutes outside", slot:"day", essential:false, pts:5},
+      {id:uid(), title:"One focused work block", slot:"day", essential:false, pts:10},
+      {id:uid(), title:"Shower, or at least wash your face", slot:"evening", essential:false, pts:10},
+      {id:uid(), title:"Tidy one surface", slot:"evening", essential:false, pts:5},
+      {id:uid(), title:"Phone down before bed", slot:"evening", essential:false, pts:5}
+    ],
+    rewards:[
+      {id:uid(), title:"An hour of guilt-free gaming", cost:40},
+      {id:uid(), title:"Order the takeaway", cost:80},
+      {id:uid(), title:"A whole lazy morning, permitted", cost:120}
+    ],
+    days:{}, journal:[], redeemed:[], points:0, devotion:0,
+    ledger:{ linked:false }
+  };
+}
+let S = load() || defaults();
+function day(k=dk()){ if(!S.days[k]) S.days[k] = { done:{}, checkin:null, evening:null, burnout:false }; return S.days[k]; }
+
+// ---------- voice ----------
+const STYLES = {
+  governess:{ label:"Strict governess", desc:"Proper, exacting, quietly fond of you.",
+    praise:["Good.","Very good.","That will do nicely.","Correct."],
+    sign:["Now, carry on.","Mind me.","Posture, please.","As you were."] },
+  nurturing:{ label:"Nurturing mommy", desc:"Warm and firm. Looks after you whether you like it or not.",
+    praise:["That's my good {term}.","So proud of you, {pet}.","There we go, sweetheart.","Clever {term}."],
+    sign:["Mommy's watching.","Come back to me later.","I've got you.","Be good for me."] },
+  executive:{ label:"Cool executive", desc:"Brisk, clipped, runs you like a schedule.",
+    praise:["Noted. Good.","Efficient.","Acceptable. Well done.","That's what I pay attention to."],
+    sign:["Next item.","Report back.","I'll check in.","Don't waste my time."] },
+  tease:{ label:"Playful tease", desc:"Smug, amused, and very hard to disappoint.",
+    praise:["Look at you, obeying.","Oh, very good, {pet}.","Aren't you sweet when you listen.","Mm. Good {term}."],
+    sign:["Don't make me come over there.","I'll be watching, {pet}.","Try to keep up.","Be good. Or don't, and see."] }
+};
+
+const V = {
+gentle:{
+  greetMorning:["Morning, {pet}. No rush. Let's get you started gently.","Good morning, {name}. Tell me how you are first, then we'll decide the day together."],
+  greetDay:["How's the day treating you, {pet}? Let's see where we are.","Afternoon, {name}. Small steps. Show me what you've managed."],
+  greetEvening:["Evening, {pet}. Let's wind you down.","It's getting late, {name}. Come here and let me see how today went."],
+  checkinAsk:"How are you, really?",
+  low:["Then today is a soft day. I've trimmed it down to what matters. Just those, and I'll be proud of you.","Thank you for telling me. We're doing the essentials only, and that's an order I mean kindly."],
+  ok:["Alright. A steady day, then. One thing at a time.","Good enough is good enough. Let's begin with the first item."],
+  good:["Lovely. Use it well, but don't burn through it all at once.","I'm glad. Let's put that energy somewhere useful."],
+  done:["Thank you, {pet}.","That's one less thing. Well done.","See? You can."],
+  essentials:["The essentials are done. Everything else is a bonus now.","You've covered the important things. Breathe."],
+  all:["Everything. All of it. I'm so pleased with you.","You finished the lot, {pet}. Rest now. That's earned."],
+  revAll:["You did everything I asked. Sleep well.","A full day. I'm proud of you."],
+  revSome:["You did {n} of {t}. That still counts, and I noticed every one.","Not everything, and that's alright. Tomorrow we try again."],
+  revNone:["Today was hard. You still came to me, and that matters. We start fresh tomorrow.","Nothing ticked off, and I'm not cross. Water and bed, please."],
+  burnout:["Burnout day. I'm taking the list off you. Essentials, water, rest. That's all I want.","Low battery noted. You don't have to earn rest today."],
+  prompts:["What was the kindest thing you did for yourself today?","What's weighing on you? Put it down here.","Tell me one thing that went alright."],
+  reply:{ tired:"You sound worn through. Rest isn't a reward today, it's an instruction.", anxious:"I hear the worry. Write the next tiny step, do only that, and let me hold the rest.", proud:"I'm proud of you too. Read that back tomorrow when you forget.", sad:"Thank you for telling me, {pet}. You don't have to fix the feeling. Just be gentle with yourself tonight.", bad:"Be careful how you speak about my {term}. One rough day doesn't change what I think of you.", def:"Thank you for telling me. I read every word." },
+  redeemOk:["Granted. Enjoy it properly, no guilt.","You earned that. Go on."],
+  redeemNo:["Not quite yet, {pet}. Soon.","A little more first. You're close."]
+},
+firm:{
+  greetMorning:["Morning, {pet}. Up, water, then come back to me.","Good morning, {name}. Check in with me before you do anything else."],
+  greetDay:["Afternoon. Let's see what's been done, {pet}.","Midday check, {name}. Show me your list."],
+  greetEvening:["Evening. Time to account for your day, {pet}.","It's late, {name}. Come and report."],
+  checkinAsk:"Report in. How are you?",
+  low:["Understood. Essentials only today, and I expect every one of them.","Then we keep it small. Meds, food, water. No arguing."],
+  ok:["Fine. A normal day. Start at the top.","Good. Work through it in order."],
+  good:["Good. Then I'll expect a good day from you.","Excellent. Don't squander it."],
+  done:["Next.","Good. Keep going.","That's how I like it."],
+  essentials:["Essentials done. Now the rest, please.","The important ones are handled. Don't stop there."],
+  all:["All done. That's what I wanted to see.","Every item. You may relax, {pet}."],
+  revAll:["Full marks today. Well behaved.","Everything done. I'm pleased."],
+  revSome:["{n} of {t}. Decent. Tomorrow I want more.","{n} of {t}. Not bad, not finished. We'll do better."],
+  revNone:["Nothing done. I'm not angry. I am paying attention. Water, then bed.","An empty list. Tell me what got in the way, in the journal, before you sleep."],
+  burnout:["Burnout day. I'm cutting the list. You will do the essentials and you will rest. That isn't optional.","Fine. Soft day. But the essentials still happen."],
+  prompts:["What did you put off today, and why?","What do you need from me tomorrow?","What are you proud of? Don't be modest."],
+  reply:{ tired:"Then tonight you rest. Early night. That's an instruction.", anxious:"Stop spiralling. Pick one small thing, do it, and report back.", proud:"Good. Take the compliment, {pet}.", sad:"Noted, and I'm glad you told me. Be gentle with yourself tonight. That's an order.", bad:"Enough of that. Nobody talks about my {term} like that, including you.", def:"Noted. Thank you for being honest with me." },
+  redeemOk:["Granted. You earned it.","Approved. Enjoy it."],
+  redeemNo:["Not enough yet. Earn it.","No. Come back when you've done the work."]
+},
+strict:{
+  greetMorning:["Up. Water, meds, then check in. In that order, {pet}.","Morning, {name}. I'm waiting for your report."],
+  greetDay:["It's past noon. Show me your list.","Status, {pet}. Now."],
+  greetEvening:["Evening. You'll account for every item, {pet}.","Bedtime is coming, {name}. Report."],
+  checkinAsk:"Report. Honestly.",
+  low:["Then you do the essentials. All of them. I'll handle the rest of the list.","Low day. Small list. No excuses on what's left."],
+  ok:["Good. Begin. Top of the list.","Fine. No dawdling."],
+  good:["Good. Then I expect everything today.","Excellent. Full list. Go."],
+  done:["Next.","Good. Don't stop.","Correct. Continue."],
+  essentials:["Essentials done. I didn't say stop.","Now the rest."],
+  all:["Everything. Good {term}. You may rest.","Complete. That's obedience. I'm pleased."],
+  revAll:["Full list. Exactly as instructed.","All done. Good behaviour noted."],
+  revSome:["{n} of {t}. Tomorrow, the first item is the first one you missed today.","{n} of {t}. I noticed what's missing. So will you, tomorrow."],
+  revNone:["Nothing. We'll talk about it tomorrow. Tonight: water and bed. Go.","Empty list. I'm not punishing you for a hard day. I'm sending you to bed."],
+  burnout:["Burnout day, granted. Essentials and rest. I'll be just as strict about the rest part.","Fine. Small list. You still answer to me for it."],
+  prompts:["Account for today. What did you do, and what didn't you?","What will you do differently tomorrow?","Where did you obey well today?"],
+  reply:{ tired:"Then bed. Early. Phone away. Don't argue.", anxious:"Breathe. One task. Report when it's done. That's all I want.", proud:"Good. You're allowed to be proud when you've earned it. You've earned it.", sad:"Thank you for telling me. Tonight you're gentle with yourself, and that's an order, {pet}.", bad:"Stop. You don't speak about my {term} like that. Try again.", def:"Received. Good, honest report." },
+  redeemOk:["Granted. Earned.","Approved. Don't make me regret it."],
+  redeemNo:["Denied. Not enough yet.","No. Work first."]
+}};
+
+function bucket(){ if(day().burnout) return "gentle"; const i = S.her.intensity; return i<=2?"gentle":i===3?"firm":"strict"; }
+function fill(s, extra={}){
+  return s.replace(/\{pet\}/g, S.her.pet||"pet").replace(/\{name\}/g, S.me.name||"you").replace(/\{term\}/g, S.me.term||"pet")
+          .replace(/\{n\}/g, extra.n ?? "").replace(/\{t\}/g, extra.t ?? "");
+}
+function say(key, extra){ const v = V[bucket()][key]; return fill(Array.isArray(v)?pick(v):v, extra); }
+function praise(){ return fill(pick(STYLES[S.her.style].praise)); }
+function sign(){ return fill(pick(STYLES[S.her.style].sign)); }
+function initial(){ const n=(S.her.name||"K").replace(/^(madame|miss|mistress|mommy|mummy|lady|ms\.?|mrs\.?)\s+/i,""); return (n[0]||"K").toUpperCase(); }
+
+// ---------- derived ----------
+const LEVELS = [ [0,"New"],[60,"Noticed"],[180,"Kept"],[400,"Trusted"],[800,"Cherished"],[1500,"Hers"] ];
+function standing(){
+  let i=0; for(let j=0;j<LEVELS.length;j++) if(S.devotion>=LEVELS[j][0]) i=j;
+  const cur=LEVELS[i], nxt=LEVELS[i+1];
+  return { name:cur[1], next:nxt?nxt[1]:null, pct: nxt ? (S.devotion-cur[0])/(nxt[0]-cur[0]) : 1, toNext: nxt? nxt[0]-S.devotion : 0 };
+}
+function todaysTasks(){ const d=day(); return d.burnout ? S.tasks.filter(t=>t.essential) : S.tasks; }
+function slotNow(){ const h=new Date().getHours(); return h<12?"morning":h<17?"day":"evening"; }
+
+// ---------- her current note ----------
+let note = null;
+function setNote(text){ note = { text, sig: sign() }; }
+function freshNote(){
+  const d=day(), s=slotNow();
+  if(d.burnout && !note) return setNote(say("burnout"));
+  if(s==="evening" && d.evening) return setNote(d.evening.text);
+  setNote(say(s==="morning"?"greetMorning":s==="day"?"greetDay":"greetEvening"));
+}
+
+// ---------- rendering ----------
+let tab = "today";
+const $app = document.getElementById("app");
+const TABS = [
+  ["today","Today",'<path d="M4 6h16M4 12h16M4 18h10"/>'],
+  ["routine","Routine",'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/>'],
+  ["journal","Journal",'<path d="M6 3h11a2 2 0 0 1 2 2v16l-4-2-4 2-4-2-3 2V5a2 2 0 0 1 2-2z"/>'],
+  ["rewards","Rewards",'<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.6 6.6 19.4l1.3-6L3.4 9.3l6-.7z"/>'],
+  ["her","Her",'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>']
+];
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = TABS.map(([k,l,ic])=>`<button data-tab="${k}" ${tab===k?'aria-current="page"':""}><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg>${l}</button>`).join("");
+}
+function topBar(){
+  const st=standing(), d=new Date();
+  const date = d.toLocaleDateString("en-GB",{weekday:"long", day:"numeric", month:"long"});
+  return `<div class="top"><div class="date">${esc(date)}</div>
+    <div class="standing" title="${st.next?st.toNext+" devotion to "+st.next:"Highest standing"}">${esc(st.name)}<span class="bar"><i style="width:${Math.round(st.pct*100)}%"></i></span></div></div>`;
+}
+function noteCard(){
+  if(!note) freshNote();
+  return `<div class="note pop" aria-live="polite"><div class="seal" aria-hidden="true">${esc(initial())}</div>
+    <div class="msg">${esc(note.text)}<div class="sig">${esc(note.sig)} &mdash; ${esc(S.her.name)}</div></div>
+    <div class="who"><span>${esc(STYLES[S.her.style].label)}</span><span class="chip ${day().burnout?"brass":"hot"}">${day().burnout?"Burnout day":["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]}</span></div></div>`;
+}
+
+function viewToday(){
+  const d=day(), tasks=todaysTasks(), doneN=tasks.filter(t=>d.done[t.id]).length;
+  let h = topBar();
+  if(!S.configured && !S.dismissedIntro) h += `<div class="banner"><span>She's using example settings. Give her a name and a style of her own.</span><span class="row"><button class="btn small" data-act="go-her">Make her yours</button><button class="btn ghost small" data-act="dismiss-intro" aria-label="Dismiss">Later</button></span></div>`;
+  h += noteCard();
+
+  // check-in
+  if(!d.checkin){
+    h += `<section class="section"><div class="section-head"><h2>${esc(V[bucket()].checkinAsk)}</h2></div>
+      <div class="panel stack"><div class="eyebrow">Mood</div>
+      <div class="choices" role="group" aria-label="Mood">${["Wrecked","Low","Okay","Good","Bright"].map((m,i)=>`<button class="choice" data-mood="${i+1}" aria-pressed="${ci.mood===i+1}">${m}</button>`).join("")}</div>
+      <div class="eyebrow">Energy</div>
+      <div class="choices three" role="group" aria-label="Energy">${["Empty","Some","Plenty"].map((m,i)=>`<button class="choice" data-energy="${i+1}" aria-pressed="${ci.energy===i+1}">${m}</button>`).join("")}</div>
+      <button class="btn" data-act="checkin" ${ci.mood&&ci.energy?"":"disabled"}>Report to ${esc(S.her.name)}</button></div></section>`;
+  }
+
+  // burnout toggle
+  h += `<div class="burnout ${d.burnout?"on":""}"><div><b>${d.burnout?"Burnout day is on":"Running on empty?"}</b><div class="muted" style="font-size:.85rem">${d.burnout?"Only essentials today. She'll be gentle.":"She'll cut today to the essentials and soften her tone."}</div></div>
+    <button class="btn ${d.burnout?"ghost":""} small" data-act="burnout">${d.burnout?"Turn off":"Ask for it"}</button></div>`;
+
+  // tasks
+  h += `<section class="section"><div class="section-head"><h2>Today's orders</h2><span class="muted" style="font-variant-numeric:tabular-nums">${doneN} / ${tasks.length}</span></div>
+    <div class="progress" aria-hidden="true"><i style="width:${tasks.length?doneN/tasks.length*100:0}%"></i></div>`;
+  for(const slot of ["morning","day","evening"]){
+    const ts = tasks.filter(t=>t.slot===slot); if(!ts.length) continue;
+    h += `<div class="slot"><div class="slot-label">${{morning:"Morning",day:"During the day",evening:"Evening"}[slot]}</div>` +
+      ts.map(t=>`<button class="task ${d.done[t.id]?"done":""}" data-task="${t.id}" aria-pressed="${!!d.done[t.id]}"><span class="box" aria-hidden="true"></span><span class="t">${esc(t.title)}${t.essential?'<span class="ess">Essential</span>':""}</span><span class="pts">+${t.pts}</span></button>`).join("") + `</div>`;
+  }
+  if(!tasks.length) h += `<div class="empty">No orders yet. Add some under Routine.</div>`;
+  h += `</section>`;
+
+  // evening review
+  if(slotNow()==="evening" || d.evening){
+    h += `<section class="section"><div class="section-head"><h2>Evening report</h2></div><div class="panel stack">` +
+      (d.evening ? `<div class="muted">Reported at ${new Date(d.evening.ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}. She's read it.</div><button class="btn ghost" data-act="go-journal">Write in your journal</button>`
+                 : `<div class="muted">Close the day with her. She'll review what you did.</div><button class="btn" data-act="evening">Give my report</button>`) +
+      `</div></section>`;
+  }
+
+  // week
+  h += `<section class="section"><div class="section-head"><h2>This week</h2><span class="muted" style="font-size:.85rem">No streaks to break</span></div><div class="panel"><div class="week">`;
+  const now=new Date();
+  for(let i=6;i>=0;i--){ const x=new Date(now); x.setDate(now.getDate()-i); const k=dk(x), dd=S.days[k];
+    let lvl=0; if(dd){ const n=Object.keys(dd.done).length; lvl = n===0?(dd.checkin?1:0): n<4?2:3; }
+    h+=`<div class="${i===0?"today":""}"><i class="${lvl?"l"+lvl:""}" title="${k}"></i>${x.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</div>`; }
+  h += `</div></div></section>`;
+  return h;
+}
+
+let ci = { mood:0, energy:0 };
+
+function viewRoutine(){
+  let h = `${topBar()}<section class="section"><div class="section-head"><h2>Your routine</h2></div>
+    <p class="muted" style="margin:0">These are the orders she gives you each day. Essentials are the ones she keeps even on burnout days.</p>`;
+  for(const slot of ["morning","day","evening"]){
+    const ts=S.tasks.filter(t=>t.slot===slot);
+    h += `<div class="panel stack"><div class="eyebrow">${{morning:"Morning",day:"During the day",evening:"Evening"}[slot]}</div>` +
+      (ts.length? ts.map(t=>`<div class="stack" style="gap:6px"><div class="edit-row">
+        <input type="text" id="t-${t.id}" value="${esc(t.title)}" data-edit="${t.id}" data-field="title" aria-label="Task">
+        <select id="p-${t.id}" data-edit="${t.id}" data-field="pts" aria-label="Devotion points">${[5,10,15,20].map(p=>`<option value="${p}" ${t.pts===p?"selected":""}>+${p}</option>`).join("")}</select>
+        <button class="x" data-del="${t.id}" aria-label="Remove ${esc(t.title)}">&times;</button></div>
+        <label class="toggle"><input type="checkbox" id="e-${t.id}" data-edit="${t.id}" data-field="essential" ${t.essential?"checked":""}> Essential</label></div>`).join("") : `<div class="empty">Nothing here.</div>`) +
+      `<button class="btn ghost small" data-add="${slot}">Add an order</button></div>`;
+  }
+  return h + `</section>`;
+}
+
+let jPrompt = null;
+function viewJournal(){
+  if(!jPrompt) jPrompt = pick(V[bucket()].prompts);
+  let h = `${topBar()}<section class="section"><div class="section-head"><h2>Journal</h2><button class="btn ghost small" data-act="new-prompt">Another question</button></div>
+    <div class="panel stack"><div class="entry" style="border:0;padding:0"><div class="p">&ldquo;${esc(fill(jPrompt))}&rdquo;</div></div>
+    <textarea id="jtext" placeholder="Answer her honestly."></textarea>
+    <button class="btn" data-act="journal">Hand it to her</button></div></section>`;
+  h += `<section class="section"><div class="section-head"><h2>Past entries</h2></div>`;
+  if(!S.journal.length) h += `<div class="empty">Nothing written yet. Your first entry will appear here with her reply.</div>`;
+  for(const e of S.journal.slice().reverse().slice(0,30)){
+    h += `<div class="entry"><div class="eyebrow">${esc(new Date(e.ts).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))}</div>
+      <div class="p">${esc(e.prompt)}</div><div class="txt">${esc(e.text)}</div><div class="reply"><b>${esc(S.her.name)}</b>${esc(e.reply)}</div></div>`;
+  }
+  return h + `</section>`;
+}
+
+function viewRewards(){
+  let h = `${topBar()}<section class="section"><div class="section-head"><h2>Privileges</h2></div>
+    <div class="panel row between wrap"><div class="purse"><span class="n">${S.points}</span><span class="muted">devotion to spend</span></div>
+    <div class="muted" style="font-size:.85rem">${S.devotion} earned in total</div></div>
+    <p class="muted" style="margin:0">Things you're allowed once you've earned them. Asking her spends the points; your standing never goes down.</p>`;
+  for(const r of S.rewards){
+    h += `<div class="reward"><div><div style="font-weight:600">${esc(r.title)}</div><div class="muted" style="font-size:.82rem">${r.cost} devotion</div></div>
+      <button class="btn small ${S.points>=r.cost?"":"ghost"}" data-redeem="${r.id}">Ask for it</button></div>`;
+  }
+  h += `<div class="panel stack"><div class="eyebrow">Add a privilege</div><input type="text" id="rtitle" placeholder="e.g. A film night, no chores">
+    <div class="row"><input type="number" id="rcost" min="5" step="5" value="50" aria-label="Cost" style="max-width:110px"><button class="btn small" data-act="add-reward">Add</button></div></div>`;
+  if(S.redeemed.length){
+    h += `<div class="section-head"><h2>Granted</h2></div>` + S.redeemed.slice().reverse().slice(0,10).map(x=>`<div class="row between"><span>${esc(x.title)}</span><span class="muted" style="font-size:.82rem">${esc(new Date(x.ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"}))}</span></div>`).join("");
+  }
+  return h + `</section>`;
+}
+
+let confirmReset = false;
+function viewHer(){
+  const i=S.her.intensity;
+  return `${topBar()}<section class="section"><div class="section-head"><h2>Her</h2></div>
+  <div class="panel stack">
+    <label class="f">Her name<input type="text" id="hname" value="${esc(S.her.name)}" data-her="name"></label>
+    <div class="stack" style="gap:6px"><div class="eyebrow">Her style</div><div class="styles">${Object.entries(STYLES).map(([k,s])=>`<button class="style-opt" data-style="${k}" aria-pressed="${S.her.style===k}"><b>${s.label}</b><small>${s.desc}</small></button>`).join("")}</div></div>
+    <label class="f">How strict is she?<input type="range" id="hint" min="1" max="5" step="1" value="${i}" data-her="intensity">
+      <div class="scale"><span>Gentle</span><span>Firm</span><span>Strict</span></div><span class="h">Burnout days always soften her, whatever this is set to.</span></label>
+  </div></section>
+  <section class="section"><div class="section-head"><h2>You</h2></div><div class="panel stack">
+    <label class="f">Your name<input type="text" id="mname" value="${esc(S.me.name)}" data-me="name"></label>
+    <label class="f">She calls you<span class="h">Used when she addresses you directly.</span><input type="text" id="hpet" value="${esc(S.her.pet)}" data-her="pet"></label>
+    <label class="f">Good&hellip;<span class="h">As in "good boy". Boy, girl, pet, puppy, or anything else.</span><input type="text" id="mterm" value="${esc(S.me.term)}" data-me="term"></label>
+    <button class="btn" data-act="preview">Hear her</button>
+  </div></section>
+  <section class="section"><div class="section-head"><h2>Ledger</h2></div><div class="panel stack">
+    <div class="muted" style="font-size:.9rem">Kept doesn't punish. When you link Ledger, missed orders here can feed its consequence rules. Until then, copy your data to move it between devices or into Ledger by hand.</div>
+    <div class="row wrap"><span class="chip">Not linked</span><button class="btn ghost small" data-act="export">Copy my data</button>
+    <button class="btn ghost small" data-act="import-open">Paste data</button></div>
+    <div id="importbox" hidden class="stack"><textarea id="importtext" placeholder="Paste exported data here"></textarea><button class="btn small" data-act="import">Load it</button></div>
+  </div></section>
+  <section class="section"><div class="panel row between wrap"><span class="muted">Start over with fresh settings</span>
+    <button class="btn ghost small" data-act="reset">${confirmReset?"Tap again to erase everything":"Reset"}</button></div></section>`;
+}
+
+function render(){
+  renderTabs();
+  $app.innerHTML = {today:viewToday, routine:viewRoutine, journal:viewJournal, rewards:viewRewards, her:viewHer}[tab]();
+}
+
+// ---------- toast ----------
+let tt; function toast(t){ const el=document.getElementById("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),2200); }
+
+// ---------- actions ----------
+function award(n){ S.points+=n; S.devotion+=n; }
+function toggleTask(id){
+  const d=day(), t=S.tasks.find(x=>x.id===id); if(!t) return;
+  if(d.done[id]){ delete d.done[id]; S.points=Math.max(0,S.points-t.pts); S.devotion=Math.max(0,S.devotion-t.pts); save(); render(); return; }
+  d.done[id]=Date.now(); award(t.pts);
+  const ts=todaysTasks(), n=ts.filter(x=>d.done[x.id]).length, ess=ts.filter(x=>x.essential), essDone=ess.every(x=>d.done[x.id]);
+  if(n===ts.length){ award(10); setNote(say("all")); toast("+"+(t.pts+10)+" devotion, list complete"); }
+  else if(t.essential && essDone && ess.length>1 && !d.burnout){ setNote(praise()+" "+say("essentials")); toast("+"+t.pts+" devotion"); }
+  else { setNote(praise()+" "+say("done")); toast("+"+t.pts+" devotion"); }
+  save(); render();
+}
+function doCheckin(){
+  const d=day(); d.checkin={ mood:ci.mood, energy:ci.energy, ts:Date.now() }; award(5);
+  if(ci.mood<=2 || ci.energy===1){ d.burnout=true; setNote(say("low")); }
+  else if(ci.mood>=4 && ci.energy>=2) setNote(say("good")); else setNote(say("ok"));
+  ci={mood:0,energy:0}; save(); render(); toast("+5 devotion for checking in");
+}
+function doEvening(){
+  const d=day(), ts=todaysTasks(), n=ts.filter(x=>d.done[x.id]).length;
+  const text = n===ts.length ? say("revAll") : n===0 ? say("revNone") : say("revSome",{n, t:ts.length});
+  d.evening={ ts:Date.now(), n, t:ts.length, text }; award(5); setNote(text); save(); render();
+}
+function replyFor(text){
+  const t=text.toLowerCase(), r=V[bucket()].reply;
+  const has = re => re.test(t);
+  let k="def";
+  if(has(/\b(useless|stupid|pathetic|worthless|failure|hate myself|i'm awful|im awful|lazy)\b/)) k="bad";
+  else if(has(/\b(tired|exhausted|knackered|shattered|drained|no energy|burnt out|burned out|sleepy)\b/)) k="tired";
+  else if(has(/\b(anxious|anxiety|worried|panic|stressed|overwhelm\w*|nervous|scared)\b/)) k="anxious";
+  else if(has(/\b(sad|lonely|down|cry|cried|upset|miserable|grief)\b/)) k="sad";
+  else if(has(/\b(proud|managed|did it|finished|achieved|good day|won|happy)\b/)) k="proud";
+  return fill(r[k]);
+}
+
+document.addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.tab){ tab=b.dataset.tab; confirmReset=false; if(tab==="today") freshNoteIfIdle(); render(); window.scrollTo(0,0); return; }
+  if(b.dataset.task) return toggleTask(b.dataset.task);
+  if(b.dataset.mood){ ci.mood=+b.dataset.mood; return render(); }
+  if(b.dataset.energy){ ci.energy=+b.dataset.energy; return render(); }
+  if(b.dataset.style){ S.her.style=b.dataset.style; S.configured=true; setNote(praise()+" "+sign()); save(); render(); toast("Style set"); return; }
+  if(b.dataset.del){ S.tasks=S.tasks.filter(t=>t.id!==b.dataset.del); save(); render(); return; }
+  if(b.dataset.add){ const t={id:uid(), title:"New order", slot:b.dataset.add, essential:false, pts:5}; S.tasks.push(t); save(); render(); const el=document.getElementById("t-"+t.id); if(el){el.focus(); el.select();} return; }
+  if(b.dataset.redeem){ const r=S.rewards.find(x=>x.id===b.dataset.redeem); if(!r) return;
+    if(S.points>=r.cost){ S.points-=r.cost; S.redeemed.push({title:r.title, ts:Date.now()}); setNote(say("redeemOk")); save(); render(); toast("Granted: "+r.title); }
+    else { setNote(say("redeemNo")); toast((r.cost-S.points)+" more devotion needed"); tab="today"; render(); }
+    return; }
+  switch(b.dataset.act){
+    case "checkin": return doCheckin();
+    case "evening": return doEvening();
+    case "burnout": { const d=day(); d.burnout=!d.burnout; setNote(d.burnout?say("burnout"):say("ok")); save(); render(); return; }
+    case "go-her": tab="her"; render(); window.scrollTo(0,0); return;
+    case "go-journal": tab="journal"; render(); window.scrollTo(0,0); return;
+    case "dismiss-intro": S.dismissedIntro=true; save(); render(); return;
+    case "new-prompt": { const cur=jPrompt; const ps=V[bucket()].prompts; let p; do{p=pick(ps);}while(ps.length>1&&p===cur); jPrompt=p; render(); return; }
+    case "journal": { const ta=document.getElementById("jtext"); const text=(ta.value||"").trim(); if(!text){ toast("Write something first"); return; }
+      const reply=replyFor(text); S.journal.push({id:uid(), ts:Date.now(), prompt:fill(jPrompt), text, reply}); award(5); jPrompt=null; setNote(reply); save(); render(); toast("+5 devotion"); return; }
+    case "add-reward": { const t=document.getElementById("rtitle").value.trim(), c=Math.max(5,parseInt(document.getElementById("rcost").value,10)||50); if(!t){ toast("Name the privilege first"); return; }
+      S.rewards.push({id:uid(), title:t, cost:c}); save(); render(); toast("Privilege added"); return; }
+    case "preview": S.configured=true; setNote(say("greetMorning")+" "+praise()); save(); tab="today"; render(); window.scrollTo(0,0); return;
+    case "export": { const data=JSON.stringify(S); const done=()=>toast("Copied to clipboard");
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(data).then(done,()=>fallbackCopy(data)); else fallbackCopy(data); return; }
+    case "import-open": document.getElementById("importbox").hidden=false; return;
+    case "import": { try{ const x=JSON.parse(document.getElementById("importtext").value); if(!x||!x.tasks||!x.her) throw 0; S=x; note=null; save(); render(); toast("Data loaded"); }catch(err){ toast("That isn't Kept data. Copy it again and paste the whole thing."); } return; }
+    case "reset": if(!confirmReset){ confirmReset=true; render(); return; } S=defaults(); note=null; confirmReset=false; save(); tab="today"; render(); toast("Fresh start"); return;
+  }
+});
+function fallbackCopy(data){ document.getElementById("importbox").hidden=false; const ta=document.getElementById("importtext"); ta.value=data; ta.select(); toast("Select all and copy this text"); }
+let lastFresh=0; function freshNoteIfIdle(){ if(Date.now()-lastFresh>10*60*1000){ note=null; lastFresh=Date.now(); } }
+
+document.addEventListener("change", e=>{
+  const el=e.target;
+  if(el.dataset.edit){ const t=S.tasks.find(x=>x.id===el.dataset.edit); if(!t) return;
+    const f=el.dataset.field; t[f]= f==="essential"? el.checked : f==="pts"? +el.value : (el.value.trim()||t[f]); save(); return; }
+  if(el.dataset.her){ const f=el.dataset.her; S.her[f]= f==="intensity"? +el.value : (el.value.trim()||S.her[f]); S.configured=true; if(f==="intensity"){ setNote(praise()+" "+sign()); toast(["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]); } save(); return; }
+  if(el.dataset.me){ S.me[el.dataset.me]=el.value.trim()||S.me[el.dataset.me]; S.configured=true; save(); return; }
+});
+
+// PWA: only registers where service workers are allowed (the installed app), silent elsewhere
+try{ if("serviceWorker" in navigator && location.protocol==="https:" && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
+
+lastFresh=Date.now(); render();
+})();
+</script>
+
+</body>
+</html>
