@@ -1,0 +1,15 @@
+name: Reminders
+
+# Wakes the app every 10 minutes so due reminders get sent.
+# GitHub can delay scheduled runs by a few minutes; reminders allow for that.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS --max-time 60 "https://kept-sooty-eight.vercel.app/api/tick"

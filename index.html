@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kept">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>:root{padding-top:env(safe-area-inset-top,0px)}body{margin:0}[hidden]{display:none!important}</style>
 <title>Kept</title>
@@ -131,6 +132,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .edit-row input,.edit-row select{padding:8px 10px;font-size:.9rem}
 .x{border:1px solid var(--line);background:transparent;border-radius:8px;height:36px;color:var(--muted)}
 .toggle{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted)}
+input[type=time]{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-variant-numeric:tabular-nums}
+input.time{width:auto;padding:5px 8px;font-size:.85rem}
 
 /* burnout */
 .burnout{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px dashed var(--line)}
@@ -174,7 +177,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 // ---------- storage ----------
 const KEY = "kept.v1";
 function load(){ try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} queueSync(); }
 
 const uid = () => Math.random().toString(36).slice(2,9);
 const dk = (d=new Date()) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -187,7 +190,7 @@ function defaults(){
     me:{ name:"Ed", term:"boy" },
     her:{ name:"Madame Wren", style:"governess", intensity:3, pet:"pet" },
     tasks:[
-      {id:uid(), title:"Take your meds", slot:"morning", essential:true, pts:10},
+      {id:uid(), title:"Take your meds", slot:"morning", essential:true, pts:10, at:"08:30"},
       {id:uid(), title:"Drink a full glass of water", slot:"morning", essential:true, pts:5},
       {id:uid(), title:"Get properly dressed", slot:"morning", essential:false, pts:5},
       {id:uid(), title:"Eat a real lunch", slot:"day", essential:true, pts:10},
@@ -203,10 +206,71 @@ function defaults(){
       {id:uid(), title:"A whole lazy morning, permitted", cost:120}
     ],
     days:{}, journal:[], redeemed:[], points:0, devotion:0,
-    ledger:{ linked:false }
+    ledger:{ linked:false },
+    push:{ enabled:false, id:null },
+    remind:{ checkin:"09:00", evening:"20:30" }
   };
 }
 let S = load() || defaults();
+S.push = S.push || { enabled:false, id:null };
+S.remind = S.remind || { checkin:"09:00", evening:"20:30" };
+
+// ---------- reminders (push) ----------
+const INSTALLED_BUILD = !!document.querySelector('link[rel="manifest"]');
+const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const STANDALONE = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+let pushMsg = "";
+function pushSupport(){
+  if(!INSTALLED_BUILD) return "preview";
+  if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return IS_IOS && !STANDALONE ? "ios-install" : "unsupported";
+  if(Notification.permission === "denied") return "denied";
+  return "ok";
+}
+function b64ToBytes(s){ const p="=".repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/")); return Uint8Array.from(b, c=>c.charCodeAt(0)); }
+function syncPayload(){
+  const d=day();
+  const reminders=[];
+  if(S.remind.checkin) reminders.push({id:"checkin", kind:"checkin", time:S.remind.checkin});
+  if(S.remind.evening) reminders.push({id:"evening", kind:"evening", time:S.remind.evening});
+  for(const t of S.tasks) if(t.at) reminders.push({id:"t-"+t.id, kind:"task", time:t.at, taskId:t.id, title:t.title, essential:!!t.essential});
+  return { id:S.push.id, tz:Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/London",
+    her:S.her, me:{term:S.me.term, name:S.me.name}, reminders,
+    today:{ date:dk(), done:Object.keys(d.done), checkin:!!d.checkin, evening:!!d.evening, burnout:!!d.burnout } };
+}
+async function postJSON(path, body){
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  let j={}; try{ j=await r.json(); }catch(e){}
+  if(!r.ok) throw Object.assign(new Error(j.message||j.error||("HTTP "+r.status)), {status:r.status, body:j});
+  return j;
+}
+let syncT;
+function queueSync(){ if(!S.push.enabled || !INSTALLED_BUILD) return; clearTimeout(syncT); syncT=setTimeout(()=>postJSON("/api/sync", syncPayload()).catch(()=>{}), 1200); }
+async function enablePush(){
+  const sup = pushSupport();
+  if(sup!=="ok"){ render(); return; }
+  try{
+    pushMsg = "Asking your phone for permission…"; render();
+    const perm = await Notification.requestPermission();
+    if(perm!=="granted"){ pushMsg = "Notifications weren't allowed. Allow them for Kept in your phone's settings, then try again."; render(); return; }
+    const kr = await fetch("/api/key"); const kj = await kr.json().catch(()=>({}));
+    if(!kr.ok) throw new Error(kj.error==="storage" ? "Reminder storage isn't connected to the Vercel project yet." : (kj.message||"The server didn't answer."));
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64ToBytes(kj.publicKey) });
+    S.push.id = S.push.id || (uid()+uid()+uid());
+    await postJSON("/api/sync", {...syncPayload(), id:S.push.id, subscription:sub.toJSON()});
+    S.push.enabled = true; pushMsg = ""; save(); setNote(fill(V[bucket()].reply.def)); render(); toast("Reminders on");
+  }catch(e){ pushMsg = "Couldn't turn reminders on. "+(e.message||e); render(); }
+}
+async function disablePush(){
+  try{ if(S.push.id) await postJSON("/api/sync", {id:S.push.id, enabled:false}); }catch(e){}
+  try{ const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription(); if(sub) await sub.unsubscribe(); }catch(e){}
+  S.push.enabled=false; pushMsg=""; save(); render(); toast("Reminders off");
+}
+async function testPush(){
+  try{ await postJSON("/api/sync", syncPayload()); await postJSON("/api/test", {id:S.push.id}); toast("Sent. Check your notifications."); }
+  catch(e){ toast(e.status===404 ? "She's lost your address. Turn reminders off and on again." : "Couldn't send: "+(e.message||e)); }
+}
 function day(k=dk()){ if(!S.days[k]) S.days[k] = { done:{}, checkin:null, evening:null, burnout:false }; return S.days[k]; }
 
 // ---------- voice ----------
@@ -404,7 +468,8 @@ function viewRoutine(){
         <input type="text" id="t-${t.id}" value="${esc(t.title)}" data-edit="${t.id}" data-field="title" aria-label="Task">
         <select id="p-${t.id}" data-edit="${t.id}" data-field="pts" aria-label="Devotion points">${[5,10,15,20].map(p=>`<option value="${p}" ${t.pts===p?"selected":""}>+${p}</option>`).join("")}</select>
         <button class="x" data-del="${t.id}" aria-label="Remove ${esc(t.title)}">&times;</button></div>
-        <label class="toggle"><input type="checkbox" id="e-${t.id}" data-edit="${t.id}" data-field="essential" ${t.essential?"checked":""}> Essential</label></div>`).join("") : `<div class="empty">Nothing here.</div>`) +
+        <div class="row between wrap"><label class="toggle"><input type="checkbox" id="e-${t.id}" data-edit="${t.id}" data-field="essential" ${t.essential?"checked":""}> Essential</label>
+        <label class="toggle">Remind me at <input type="time" class="time" id="a-${t.id}" value="${esc(t.at||"")}" data-edit="${t.id}" data-field="at" aria-label="Reminder time for ${esc(t.title)}"></label></div></div>`).join("") : `<div class="empty">Nothing here.</div>`) +
       `<button class="btn ghost small" data-add="${slot}">Add an order</button></div>`;
   }
   return h + `</section>`;
@@ -443,6 +508,29 @@ function viewRewards(){
   return h + `</section>`;
 }
 
+function remindersPanel(){
+  const sup=pushSupport(), on=S.push.enabled;
+  const status = {
+    preview:"Reminders only work in the installed app. Open Kept from your Vercel address and add it to your home screen.",
+    "ios-install":"On iPhone, add Kept to your Home Screen first (Share, then Add to Home Screen), open it from there, and turn this on.",
+    unsupported:"This browser can't receive notifications.",
+    denied:"Notifications are blocked for Kept. Allow them in your phone's settings, then come back."
+  }[sup];
+  const nTask = S.tasks.filter(t=>t.at).length;
+  return `<section class="section"><div class="section-head"><h2>Reminders</h2><span class="chip ${on?"hot":""}">${on?"On":"Off"}</span></div><div class="panel stack">
+    <div class="muted" style="font-size:.9rem">She'll message you at these times if you haven't done it yet. At firm or stricter, she follows up once an hour later. On burnout days she only chases essentials, and gently.</div>
+    <div class="row wrap" style="gap:14px">
+      <label class="f" style="flex:1;min-width:130px">Morning check-in<input type="time" id="rcheck" value="${esc(S.remind.checkin||"")}" data-remind="checkin"></label>
+      <label class="f" style="flex:1;min-width:130px">Evening report<input type="time" id="reve" value="${esc(S.remind.evening||"")}" data-remind="evening"></label>
+    </div>
+    <div class="muted" style="font-size:.85rem">${nTask?`${nTask} order${nTask>1?"s have their":" has its"} own reminder time. `:""}Set times for individual orders under Routine.</div>
+    ${status?`<div class="banner">${esc(status)}</div>`:""}
+    ${pushMsg?`<div class="banner">${esc(pushMsg)}</div>`:""}
+    <div class="row wrap">${on
+      ? `<button class="btn ghost small" data-act="push-test">Send a test</button><button class="btn ghost small" data-act="push-off">Turn off</button>`
+      : `<button class="btn small" data-act="push-on" ${sup!=="ok"?"disabled":""}>Let her remind me</button>`}</div>
+  </div></section>`;
+}
 let confirmReset = false;
 function viewHer(){
   const i=S.her.intensity;
@@ -459,6 +547,7 @@ function viewHer(){
     <label class="f">Good&hellip;<span class="h">As in "good boy". Boy, girl, pet, puppy, or anything else.</span><input type="text" id="mterm" value="${esc(S.me.term)}" data-me="term"></label>
     <button class="btn" data-act="preview">Hear her</button>
   </div></section>
+  ${remindersPanel()}
   <section class="section"><div class="section-head"><h2>Ledger</h2></div><div class="panel stack">
     <div class="muted" style="font-size:.9rem">Kept doesn't punish. When you link Ledger, missed orders here can feed its consequence rules. Until then, copy your data to move it between devices or into Ledger by hand.</div>
     <div class="row wrap"><span class="chip">Not linked</span><button class="btn ghost small" data-act="export">Copy my data</button>
@@ -526,6 +615,9 @@ document.addEventListener("click", e=>{
     else { setNote(say("redeemNo")); toast((r.cost-S.points)+" more devotion needed"); tab="today"; render(); }
     return; }
   switch(b.dataset.act){
+    case "push-on": return enablePush();
+    case "push-off": return disablePush();
+    case "push-test": return testPush();
     case "checkin": return doCheckin();
     case "evening": return doEvening();
     case "burnout": { const d=day(); d.burnout=!d.burnout; setNote(d.burnout?say("burnout"):say("ok")); save(); render(); return; }
@@ -551,7 +643,8 @@ let lastFresh=0; function freshNoteIfIdle(){ if(Date.now()-lastFresh>10*60*1000)
 document.addEventListener("change", e=>{
   const el=e.target;
   if(el.dataset.edit){ const t=S.tasks.find(x=>x.id===el.dataset.edit); if(!t) return;
-    const f=el.dataset.field; t[f]= f==="essential"? el.checked : f==="pts"? +el.value : (el.value.trim()||t[f]); save(); return; }
+    const f=el.dataset.field; t[f]= f==="essential"? el.checked : f==="pts"? +el.value : f==="at"? el.value : (el.value.trim()||t[f]); save(); return; }
+  if(el.dataset.remind){ S.remind[el.dataset.remind]=el.value; save(); return; }
   if(el.dataset.her){ const f=el.dataset.her; S.her[f]= f==="intensity"? +el.value : (el.value.trim()||S.her[f]); S.configured=true; if(f==="intensity"){ setNote(praise()+" "+sign()); toast(["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]); } save(); return; }
   if(el.dataset.me){ S.me[el.dataset.me]=el.value.trim()||S.me[el.dataset.me]; S.configured=true; save(); return; }
 });
@@ -560,6 +653,8 @@ document.addEventListener("change", e=>{
 try{ if("serviceWorker" in navigator && location.protocol==="https:" && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register("sw.js").catch(()=>{}); }catch(e){}
 
 lastFresh=Date.now(); render();
+queueSync();
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ queueSync(); if(tab==="today"){ freshNoteIfIdle(); render(); } } });
 })();
 </script>
 

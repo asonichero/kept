@@ -19,7 +19,20 @@ Static files only, no build step. Deploy the repo root to Vercel (or any static 
 
 Data is stored in the browser's localStorage on each device. Use **Her → Copy my data / Paste data** to move it between devices.
 
+## Reminders
+
+She sends push notifications at your check-in time, your evening report time, and any order with a "Remind me at" time. A reminder is skipped when it's already done. At firm or stricter intensity she follows up once an hour later. On burnout days she only chases essentials.
+
+How it works:
+
+- `api/sync` stores your reminder schedule, persona and today's progress whenever the app changes.
+- `api/tick` sends whatever is due. A GitHub Action (`.github/workflows/remind.yml`) calls it every 10 minutes.
+- Push keys are generated on first use and kept in Redis. No secrets to set.
+
+One-time setup: in the Vercel project, open **Storage → Create Database → Upstash for Redis** (free tier), connect it to `kept`, then redeploy. On iPhone, add Kept to the Home Screen and open it from there before turning reminders on.
+
 ## Files
 
 - `index.html`: the whole app
-- `manifest.webmanifest`, `sw.js`, `icon-*`: PWA install and offline support
+- `manifest.webmanifest`, `sw.js`, `icon-*`: PWA install, offline support and notifications
+- `api/`: reminder functions on Vercel
