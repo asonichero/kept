@@ -66,9 +66,24 @@ h2{font-size:1.45rem}
 .standing .bar i{display:block;height:100%;background:var(--brass)}
 
 /* her note */
-.note{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 20px 18px 20px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+.note{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 16px 14px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.av{--av-bg:#2c2338;--av-ink:#1d1624;--av-skin:#f1e8d8;--av-hair:#93283d;display:block;flex-shrink:0;border-radius:50%;overflow:visible}
+.av-btn{background:none;border:0;padding:0;border-radius:50%;line-height:0}
+.av-head{transform-box:view-box;transform-origin:100px 150px;animation:av-breathe 5.5s ease-in-out infinite}
+.av-tail{transform-box:view-box;transform-origin:130px 70px;animation:av-sway 6.5s ease-in-out infinite}
+.av.tilt .av-head{animation:av-tilt .7s ease}
+@keyframes av-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+@keyframes av-sway{0%,100%{transform:rotate(0)}50%{transform:rotate(1.8deg)}}
+@keyframes av-tilt{0%,100%{transform:rotate(0)}40%{transform:rotate(-5deg)}}
+@keyframes av-talk-a{0%{opacity:1}50%{opacity:0}}
+@keyframes av-talk-b{0%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){.av-head,.av-tail{animation:none!important}}
+.look{display:flex;flex-wrap:wrap;gap:8px}
+.sw{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);padding:0}
+.sw[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--bg) inset}
 .seal{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 30%, color-mix(in srgb,var(--accent) 80%,#fff 20%), var(--accent) 55%, color-mix(in srgb,var(--accent) 70%,#000 30%));color:var(--accent-ink);display:grid;place-items:center;font-family:var(--display);font-size:1.6rem;font-weight:700;box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--accent) 70%,#000 30%), 0 2px 8px rgba(0,0,0,.25);flex-shrink:0}
-.note .msg{font-family:var(--display);font-size:1.22rem;line-height:1.45;min-width:0}
+.note .msg{font-family:var(--display);font-size:1.18rem;line-height:1.45;min-width:0}
+@media (max-width:380px){.note .av{width:84px;height:84px}}
 .note .sig{margin-top:8px;font-family:var(--display);font-style:italic;color:var(--muted);font-size:.98rem}
 .note .who{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;border-top:1px dashed var(--line);padding-top:10px;font-size:.78rem;color:var(--muted)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:600;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
@@ -188,7 +203,7 @@ function defaults(){
   return {
     v:1, configured:false, dismissedIntro:false,
     me:{ name:"Ed", term:"boy" },
-    her:{ name:"Madame Wren", style:"governess", intensity:3, pet:"pet" },
+    her:{ name:"Madame Wren", style:"governess", intensity:3, pet:"pet", look:{ hair:"crimson", skin:"porcelain" } },
     tasks:[
       {id:uid(), title:"Take your meds", slot:"morning", essential:true, pts:10, at:"08:30"},
       {id:uid(), title:"Drink a full glass of water", slot:"morning", essential:true, pts:5},
@@ -213,6 +228,7 @@ function defaults(){
 }
 let S = load() || defaults();
 S.push = S.push || { enabled:false, id:null };
+S.her.look = S.her.look || { hair:"crimson", skin:"porcelain" };
 S.remind = S.remind || { checkin:"09:00", evening:"20:30" };
 
 // ---------- reminders (push) ----------
@@ -361,6 +377,89 @@ function praise(){ return fill(pick(STYLES[S.her.style].praise)); }
 function sign(){ return fill(pick(STYLES[S.her.style].sign)); }
 function initial(){ const n=(S.her.name||"K").replace(/^(madame|miss|mistress|mommy|mummy|lady|ms\.?|mrs\.?)\s+/i,""); return (n[0]||"K").toUpperCase(); }
 
+// ---------- her avatar ----------
+// Front-facing portrait of her in the icon's language: flat cream skin, deep ink features,
+// a crimson side-swept fringe with the icon's S-curve tail, cream dot ornaments.
+// Every expression part is drawn once; CSS shows the right ones for data-exp and crossfades.
+// Eyes and brows are drawn for her left (viewer's right) and mirrored.
+const AV_PARTS = {
+  brow: {
+    neutral: "M107 87 C114 81 125 81 134 86",
+    raised:  "M107 82 C114 74 125 74 134 80",
+    stern:   "M106 93 C114 88 125 85 134 85",
+    soft:    "M107 83 C115 83 125 86 134 91"
+  },
+  eye: {
+    open:   { d: "M108 101 C113 94 125 93 132 98 L138 94 C135 100 127 105 114 105 C111 104 109 103 108 101 Z", fill: true },
+    narrow: { d: "M108 102 C114 99 125 98 132 99 L138 96 C134 102 126 105 114 105 C111 104 109 103 108 102 Z", fill: true },
+    happy:  { d: "M108 103 C114 96 126 96 132 101", fill: false },
+    shut:   { d: "M108 102 C115 104 125 104 132 101", fill: false }
+  },
+  mouth: {
+    neutral: { d: "M89 133 C95 134 105 134 111 133", fill: false },
+    smile:   { d: "M88 131 C95 138 105 138 112 131", fill: false },
+    grin:    { d: "M87 130 C94 142 106 142 113 130 C106 133 94 133 87 130 Z", fill: true },
+    firm:    { d: "M91 134 C97 133 103 133 109 134", fill: false },
+    soft:    { d: "M91 133 C96 136 104 136 109 133", fill: false },
+    smirk:   { d: "M89 134 C96 135 104 133 112 127", fill: false },
+    talk:    { d: "M90 132 C95 139 105 139 110 132 C104 134 96 134 90 132 Z", fill: true }
+  }
+};
+const AV_EXP = {
+  neutral:   { brow: "neutral", eye: "open",   mouth: "neutral" },
+  pleased:   { brow: "raised",  eye: "open",   mouth: "smile" },
+  delighted: { brow: "raised",  eye: "happy",  mouth: "grin" },
+  stern:     { brow: "stern",   eye: "narrow", mouth: "firm" },
+  soft:      { brow: "soft",    eye: "open",   mouth: "soft" },
+  smirk:     { brow: "raised",  eye: "narrow", mouth: "smirk" }
+};
+const AV_HAIR = { crimson:"#93283d", black:"#120e15", auburn:"#9a4a26", silver:"#b9b2bf", blonde:"#d6b36a", violet:"#5e3a8a" };
+const AV_SKIN = { porcelain:"#f1e8d8", warm:"#e6c3a0", tan:"#c8936a", brown:"#8f5e3e", deep:"#5c3b2a" };
+
+function avatarSVG(size, label){
+  const P = AV_PARTS;
+  const part = (kind, key, v) => {
+    const d = typeof v === "string" ? v : v.d, fill = typeof v === "string" ? false : v.fill;
+    return `<path class="av-p av-${kind}-${key}" d="${d}" ${fill ? 'fill="var(--av-ink)"' : 'fill="none" stroke="var(--av-ink)" stroke-width="' + (kind === "brow" ? 4.5 : 4) + '" stroke-linecap="round"'}/>`;
+  };
+  const side = Object.entries(P.brow).map(([k,v])=>part("brow",k,v)).join("") + Object.entries(P.eye).map(([k,v])=>part("eye",k,v)).join("");
+  return `<svg class="av" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="${label}">
+    <circle cx="100" cy="100" r="99" fill="var(--av-bg)"/>
+    <g class="av-body">
+      <path fill="var(--av-skin)" d="M86 140 L114 140 L116 172 C132 176 150 186 160 200 L40 200 C50 186 68 176 84 172 Z"/>
+      <path fill="var(--av-ink)" opacity=".55" d="M86 146 C94 152 106 152 114 146 L114 156 C106 160 94 160 86 156 Z"/>
+    </g>
+    <g class="av-head">
+      <g class="av-tail"><path fill="var(--av-hair)" d="M128 60 C156 66 168 96 160 126 C154 148 140 158 138 174 C137 186 142 194 150 200 C126 196 120 178 124 162 C128 146 140 134 140 112 C140 92 134 74 120 66 Z"/></g>
+      <path fill="var(--av-hair)" d="M100 30 C66 30 50 58 52 90 C53 110 56 126 62 138 L74 138 C66 118 64 100 66 84 Z"/>
+      <path fill="var(--av-skin)" d="M100 46 C126 46 142 68 141 96 C140 126 122 156 100 156 C78 156 60 126 59 96 C58 68 74 46 100 46 Z"/>
+      <path fill="var(--av-hair)" d="M58 86 C54 52 80 30 108 30 C134 31 154 48 152 72 C146 60 132 54 116 56 C94 58 76 66 64 86 Z"/>
+      <path fill="none" stroke="var(--av-ink)" stroke-width="4" stroke-linecap="round" d="M65 85 C77 67 95 58 116 56 C131 54 144 59 151 70"/>
+      <g class="av-orn"><circle cx="140" cy="46" r="8" fill="var(--av-skin)" stroke="var(--av-ink)" stroke-width="3"/></g>
+      <g class="av-ear"><circle cx="146" cy="118" r="8.5" fill="var(--av-ink)"/><circle cx="146" cy="118" r="5" fill="var(--av-skin)"/></g>
+      <g class="av-ear"><circle cx="55" cy="118" r="8.5" fill="var(--av-ink)"/><circle cx="55" cy="118" r="5" fill="var(--av-skin)"/></g>
+      <path fill="none" stroke="var(--av-ink)" stroke-width="3" stroke-linecap="round" opacity=".7" d="M101 106 C99 114 100 118 105 119"/>
+      <g class="av-face">
+        <g>${side}</g>
+        <g transform="translate(200 0) scale(-1 1)">${side}</g>
+        ${Object.entries(P.mouth).map(([k,v])=>part("mouth",k,v)).join("")}
+      </g>
+    </g>
+  </svg>`;
+}
+function avatarCSS(){
+  let css = ".av .av-p{opacity:0;transition:opacity .18s ease}";
+  for (const [e, m] of Object.entries(AV_EXP)) {
+    css += `.av[data-exp="${e}"] .av-brow-${m.brow},.av[data-exp="${e}"] .av-eye-${m.eye},.av[data-exp="${e}"] .av-mouth-${m.mouth}{opacity:1}`;
+    css += `.av[data-exp="${e}"].talking .av-mouth-${m.mouth}{animation:av-talk-a .3s steps(1) infinite}`;
+  }
+  css += `.av.talking .av-mouth-talk{animation:av-talk-b .3s steps(1) infinite}`;
+  css += `.av.blink [class*="av-eye-"]{opacity:0!important;transition:none}.av.blink .av-eye-shut{opacity:1!important}`;
+  return css;
+}
+
+const avStyle = document.createElement("style"); avStyle.textContent = avatarCSS(); document.head.appendChild(avStyle);
+
 // ---------- derived ----------
 const LEVELS = [ [0,"New"],[60,"Noticed"],[180,"Kept"],[400,"Trusted"],[800,"Cherished"],[1500,"Hers"] ];
 function standing(){
@@ -373,10 +472,13 @@ function slotNow(){ const h=new Date().getHours(); return h<12?"morning":h<17?"d
 
 // ---------- her current note ----------
 let note = null;
-function setNote(text){ note = { text, sig: sign() }; }
+const STYLE_FACE = { governess:"neutral", nurturing:"pleased", executive:"neutral", tease:"smirk" };
+function baseFace(){ return day().burnout ? "soft" : STYLE_FACE[S.her.style] || "neutral"; }
+function setNote(text, exp){ note = { text, sig: sign(), exp: exp || baseFace(), talkUntil: Date.now() + Math.min(2600, 600 + text.length*28) }; }
+function praiseFace(){ const b=bucket(); return S.her.style==="tease" ? "smirk" : b==="strict" ? "neutral" : "pleased"; }
 function freshNote(){
   const d=day(), s=slotNow();
-  if(d.burnout && !note) return setNote(say("burnout"));
+  if(d.burnout && !note) return setNote(say("burnout"), "soft");
   if(s==="evening" && d.evening) return setNote(d.evening.text);
   setNote(say(s==="morning"?"greetMorning":s==="day"?"greetDay":"greetEvening"));
 }
@@ -402,7 +504,7 @@ function topBar(){
 }
 function noteCard(){
   if(!note) freshNote();
-  return `<div class="note pop" aria-live="polite"><div class="seal" aria-hidden="true">${esc(initial())}</div>
+  return `<div class="note pop" aria-live="polite"><button class="av-btn" data-act="poke" aria-label="${esc(S.her.name)}">${avatarSVG(104, esc(S.her.name))}</button>
     <div class="msg">${esc(note.text)}<div class="sig">${esc(note.sig)} &mdash; ${esc(S.her.name)}</div></div>
     <div class="who"><span>${esc(STYLES[S.her.style].label)}</span><span class="chip ${day().burnout?"brass":"hot"}">${day().burnout?"Burnout day":["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]}</span></div></div>`;
 }
@@ -536,7 +638,9 @@ function viewHer(){
   const i=S.her.intensity;
   return `${topBar()}<section class="section"><div class="section-head"><h2>Her</h2></div>
   <div class="panel stack">
-    <label class="f">Her name<input type="text" id="hname" value="${esc(S.her.name)}" data-her="name"></label>
+    <div class="row" style="gap:16px;align-items:center">${avatarSVG(96, esc(S.her.name))}<label class="f" style="flex:1;min-width:0">Her name<input type="text" id="hname" value="${esc(S.her.name)}" data-her="name"></label></div>
+    <div class="stack" style="gap:6px"><div class="eyebrow">Hair</div><div class="look">${Object.entries(AV_HAIR).map(([k,c])=>`<button class="sw" data-hair="${k}" style="background:${c}" aria-label="${k} hair" aria-pressed="${S.her.look.hair===k}"></button>`).join("")}</div></div>
+    <div class="stack" style="gap:6px"><div class="eyebrow">Skin</div><div class="look">${Object.entries(AV_SKIN).map(([k,c])=>`<button class="sw" data-skin="${k}" style="background:${c}" aria-label="${k} skin" aria-pressed="${S.her.look.skin===k}"></button>`).join("")}</div></div>
     <div class="stack" style="gap:6px"><div class="eyebrow">Her style</div><div class="styles">${Object.entries(STYLES).map(([k,s])=>`<button class="style-opt" data-style="${k}" aria-pressed="${S.her.style===k}"><b>${s.label}</b><small>${s.desc}</small></button>`).join("")}</div></div>
     <label class="f">How strict is she?<input type="range" id="hint" min="1" max="5" step="1" value="${i}" data-her="intensity">
       <div class="scale"><span>Gentle</span><span>Firm</span><span>Strict</span></div><span class="h">Burnout days always soften her, whatever this is set to.</span></label>
@@ -558,9 +662,27 @@ function viewHer(){
     <button class="btn ghost small" data-act="reset">${confirmReset?"Tap again to erase everything":"Reset"}</button></div></section>`;
 }
 
+let talkT;
+function dressAvatars(){
+  const hair = AV_HAIR[S.her.look.hair] || AV_HAIR.crimson, skin = AV_SKIN[S.her.look.skin] || AV_SKIN.porcelain;
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll(".av").forEach(a=>{
+    a.style.setProperty("--av-hair", hair); a.style.setProperty("--av-skin", skin);
+    a.dataset.exp = (a.closest(".note") && note) ? note.exp : baseFace();
+  });
+  const main = document.querySelector(".note .av");
+  clearTimeout(talkT);
+  if(main && note && !reduce && note.talkUntil > Date.now()){ main.classList.add("talking"); talkT = setTimeout(()=>main.classList.remove("talking"), note.talkUntil - Date.now()); }
+}
+(function blinkLoop(){
+  setTimeout(()=>{ const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(!reduce) document.querySelectorAll(".av").forEach(a=>{ a.classList.add("blink"); setTimeout(()=>a.classList.remove("blink"), 130); });
+    blinkLoop(); }, 2600 + Math.random()*3800);
+})();
 function render(){
   renderTabs();
   $app.innerHTML = {today:viewToday, routine:viewRoutine, journal:viewJournal, rewards:viewRewards, her:viewHer}[tab]();
+  dressAvatars();
 }
 
 // ---------- toast ----------
@@ -573,21 +695,21 @@ function toggleTask(id){
   if(d.done[id]){ delete d.done[id]; S.points=Math.max(0,S.points-t.pts); S.devotion=Math.max(0,S.devotion-t.pts); save(); render(); return; }
   d.done[id]=Date.now(); award(t.pts);
   const ts=todaysTasks(), n=ts.filter(x=>d.done[x.id]).length, ess=ts.filter(x=>x.essential), essDone=ess.every(x=>d.done[x.id]);
-  if(n===ts.length){ award(10); setNote(say("all")); toast("+"+(t.pts+10)+" devotion, list complete"); }
-  else if(t.essential && essDone && ess.length>1 && !d.burnout){ setNote(praise()+" "+say("essentials")); toast("+"+t.pts+" devotion"); }
-  else { setNote(praise()+" "+say("done")); toast("+"+t.pts+" devotion"); }
+  if(n===ts.length){ award(10); setNote(say("all"), "delighted"); toast("+"+(t.pts+10)+" devotion, list complete"); }
+  else if(t.essential && essDone && ess.length>1 && !d.burnout){ setNote(praise()+" "+say("essentials"), praiseFace()); toast("+"+t.pts+" devotion"); }
+  else { setNote(praise()+" "+say("done"), praiseFace()); toast("+"+t.pts+" devotion"); }
   save(); render();
 }
 function doCheckin(){
   const d=day(); d.checkin={ mood:ci.mood, energy:ci.energy, ts:Date.now() }; award(5);
-  if(ci.mood<=2 || ci.energy===1){ d.burnout=true; setNote(say("low")); }
-  else if(ci.mood>=4 && ci.energy>=2) setNote(say("good")); else setNote(say("ok"));
+  if(ci.mood<=2 || ci.energy===1){ d.burnout=true; setNote(say("low"), "soft"); }
+  else if(ci.mood>=4 && ci.energy>=2) setNote(say("good"), "pleased"); else setNote(say("ok"));
   ci={mood:0,energy:0}; save(); render(); toast("+5 devotion for checking in");
 }
 function doEvening(){
   const d=day(), ts=todaysTasks(), n=ts.filter(x=>d.done[x.id]).length;
   const text = n===ts.length ? say("revAll") : n===0 ? say("revNone") : say("revSome",{n, t:ts.length});
-  d.evening={ ts:Date.now(), n, t:ts.length, text }; award(5); setNote(text); save(); render();
+  d.evening={ ts:Date.now(), n, t:ts.length, text }; award(5); setNote(text, n===ts.length ? "delighted" : n===0 ? "soft" : bucket()==="strict" ? "stern" : "neutral"); save(); render();
 }
 function replyFor(text){
   const t=text.toLowerCase(), r=V[bucket()].reply;
@@ -598,8 +720,11 @@ function replyFor(text){
   else if(has(/\b(anxious|anxiety|worried|panic|stressed|overwhelm\w*|nervous|scared)\b/)) k="anxious";
   else if(has(/\b(sad|lonely|down|cry|cried|upset|miserable|grief)\b/)) k="sad";
   else if(has(/\b(proud|managed|did it|finished|achieved|good day|won|happy)\b/)) k="proud";
+  lastReplyKey = k;
   return fill(r[k]);
 }
+let lastReplyKey = "def";
+const REPLY_FACE = { bad:"stern", tired:"soft", anxious:"soft", sad:"soft", proud:"delighted", def:"pleased" };
 
 document.addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b) return;
@@ -607,29 +732,33 @@ document.addEventListener("click", e=>{
   if(b.dataset.task) return toggleTask(b.dataset.task);
   if(b.dataset.mood){ ci.mood=+b.dataset.mood; return render(); }
   if(b.dataset.energy){ ci.energy=+b.dataset.energy; return render(); }
-  if(b.dataset.style){ S.her.style=b.dataset.style; S.configured=true; setNote(praise()+" "+sign()); save(); render(); toast("Style set"); return; }
+  if(b.dataset.hair){ S.her.look.hair=b.dataset.hair; S.configured=true; save(); render(); return; }
+  if(b.dataset.skin){ S.her.look.skin=b.dataset.skin; S.configured=true; save(); render(); return; }
+  if(b.dataset.style){ S.her.style=b.dataset.style; S.configured=true; setNote(praise()+" "+sign(), praiseFace()); save(); render(); toast("Style set"); return; }
   if(b.dataset.del){ S.tasks=S.tasks.filter(t=>t.id!==b.dataset.del); save(); render(); return; }
   if(b.dataset.add){ const t={id:uid(), title:"New order", slot:b.dataset.add, essential:false, pts:5}; S.tasks.push(t); save(); render(); const el=document.getElementById("t-"+t.id); if(el){el.focus(); el.select();} return; }
   if(b.dataset.redeem){ const r=S.rewards.find(x=>x.id===b.dataset.redeem); if(!r) return;
-    if(S.points>=r.cost){ S.points-=r.cost; S.redeemed.push({title:r.title, ts:Date.now()}); setNote(say("redeemOk")); save(); render(); toast("Granted: "+r.title); }
-    else { setNote(say("redeemNo")); toast((r.cost-S.points)+" more devotion needed"); tab="today"; render(); }
+    if(S.points>=r.cost){ S.points-=r.cost; S.redeemed.push({title:r.title, ts:Date.now()}); setNote(say("redeemOk"), "pleased"); save(); render(); toast("Granted: "+r.title); }
+    else { setNote(say("redeemNo"), S.her.style==="tease" ? "smirk" : "stern"); toast((r.cost-S.points)+" more devotion needed"); tab="today"; render(); }
     return; }
   switch(b.dataset.act){
+    case "poke": { const pokes = { gentle:["Yes, {pet}?","Hello, you.","I'm right here."], firm:["Yes?","Can I help you, {pet}?","Eyes on your list, please."], strict:["Did I say you could touch?","Focus.","Something to report?"] };
+      setNote(fill(pick(pokes[bucket()])), S.her.style==="tease"||bucket()!=="gentle" ? "smirk" : "pleased"); render(); const a=document.querySelector(".note .av"); if(a){ a.classList.add("tilt"); setTimeout(()=>a.classList.remove("tilt"),700); } return; }
     case "push-on": return enablePush();
     case "push-off": return disablePush();
     case "push-test": return testPush();
     case "checkin": return doCheckin();
     case "evening": return doEvening();
-    case "burnout": { const d=day(); d.burnout=!d.burnout; setNote(d.burnout?say("burnout"):say("ok")); save(); render(); return; }
+    case "burnout": { const d=day(); d.burnout=!d.burnout; setNote(d.burnout?say("burnout"):say("ok"), d.burnout?"soft":undefined); save(); render(); return; }
     case "go-her": tab="her"; render(); window.scrollTo(0,0); return;
     case "go-journal": tab="journal"; render(); window.scrollTo(0,0); return;
     case "dismiss-intro": S.dismissedIntro=true; save(); render(); return;
     case "new-prompt": { const cur=jPrompt; const ps=V[bucket()].prompts; let p; do{p=pick(ps);}while(ps.length>1&&p===cur); jPrompt=p; render(); return; }
     case "journal": { const ta=document.getElementById("jtext"); const text=(ta.value||"").trim(); if(!text){ toast("Write something first"); return; }
-      const reply=replyFor(text); S.journal.push({id:uid(), ts:Date.now(), prompt:fill(jPrompt), text, reply}); award(5); jPrompt=null; setNote(reply); save(); render(); toast("+5 devotion"); return; }
+      const reply=replyFor(text); S.journal.push({id:uid(), ts:Date.now(), prompt:fill(jPrompt), text, reply}); award(5); jPrompt=null; setNote(reply, REPLY_FACE[lastReplyKey]||"pleased"); save(); render(); toast("+5 devotion"); return; }
     case "add-reward": { const t=document.getElementById("rtitle").value.trim(), c=Math.max(5,parseInt(document.getElementById("rcost").value,10)||50); if(!t){ toast("Name the privilege first"); return; }
       S.rewards.push({id:uid(), title:t, cost:c}); save(); render(); toast("Privilege added"); return; }
-    case "preview": S.configured=true; setNote(say("greetMorning")+" "+praise()); save(); tab="today"; render(); window.scrollTo(0,0); return;
+    case "preview": S.configured=true; setNote(say("greetMorning")+" "+praise(), praiseFace()); save(); tab="today"; render(); window.scrollTo(0,0); return;
     case "export": { const data=JSON.stringify(S); const done=()=>toast("Copied to clipboard");
       if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(data).then(done,()=>fallbackCopy(data)); else fallbackCopy(data); return; }
     case "import-open": document.getElementById("importbox").hidden=false; return;
@@ -645,7 +774,7 @@ document.addEventListener("change", e=>{
   if(el.dataset.edit){ const t=S.tasks.find(x=>x.id===el.dataset.edit); if(!t) return;
     const f=el.dataset.field; t[f]= f==="essential"? el.checked : f==="pts"? +el.value : f==="at"? el.value : (el.value.trim()||t[f]); save(); return; }
   if(el.dataset.remind){ S.remind[el.dataset.remind]=el.value; save(); return; }
-  if(el.dataset.her){ const f=el.dataset.her; S.her[f]= f==="intensity"? +el.value : (el.value.trim()||S.her[f]); S.configured=true; if(f==="intensity"){ setNote(praise()+" "+sign()); toast(["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]); } save(); return; }
+  if(el.dataset.her){ const f=el.dataset.her; S.her[f]= f==="intensity"? +el.value : (el.value.trim()||S.her[f]); S.configured=true; if(f==="intensity"){ setNote(praise()+" "+sign(), praiseFace()); toast(["","Gentle","Soft","Firm","Strict","Severe"][S.her.intensity]); } save(); return; }
   if(el.dataset.me){ S.me[el.dataset.me]=el.value.trim()||S.me[el.dataset.me]; S.configured=true; save(); return; }
 });
 
